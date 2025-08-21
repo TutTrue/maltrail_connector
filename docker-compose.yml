@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  maltrail-connector:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-$TutTrue}/maltrail-connector:latest
+    environment:
+      - OPENCTI_URL=${OPENCTI_CONNECTOR_URL}
+      - OPENCTI_TOKEN=${CONNECTOR_TOKEN}
+      - CONNECTOR_ID=MALTRAIL_CONNECTOR
+      - CONNECTOR_NAME=maltail-connector
+      - CONNECTOR_SCOPE=stix2
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_TEMPLATE_API_BASE_URL=https://api.github.com/repos/
+      - CONNECTOR_TEMPLATE_API_KEY=${GITHUB_TOKEN}
+
+    command: bash -c "chmod +x ./entrypoint.sh"
+    entrypoint: ./entrypoint.sh
+    networks:
+      - opencti_network
+    deploy:
+      mode: replicated
+      restart_policy:
+        condition: on-failure
+
+networks:
+  opencti_network:
+    driver: overlay

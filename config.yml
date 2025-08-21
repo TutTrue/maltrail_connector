@@ -1,0 +1,17 @@
+opencti:
+  url: ${OPENCTI_URL}
+  token: ${OPENCTI_TOKEN}
+
+connector:
+  id: ${CONNECTOR_ID}
+  type: "EXTERNAL_IMPORT"
+  name: "External Import from Github Maltrail Repository"
+  scope: "maltrail-repository"
+  log_level: "info"
+  run_and_terminate: "False"
+  send_to_queue: "True"
+  send_to_directory: "False"
+
+github:
+  api_base_url: ${GITHUB_API_BASE_URL}
+  github_token: ${GITHUB_TOKEN}
