@@ -1,6 +1,7 @@
 services:
   maltrail-connector:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-tuttrue}/maltrail-connector:latest
+    # image: maltrail-connector:local
     environment:
       - OPENCTI_URL=${OPENCTI_URL}
       - OPENCTI_TOKEN=${OPENCTI_TOKEN}
