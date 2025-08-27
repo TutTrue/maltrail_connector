@@ -111,15 +111,9 @@ class ConnectorTemplate:
             # Performing the collection of intelligence
             stix_objects = self._collect_intelligence()
 
-            if stix_objects is not None and len(stix_objects) is not None:
-                stix_objects_bundle = self.helper.stix2_create_bundle(stix_objects)
-                bundles_sent = self.helper.send_stix2_bundle(stix_objects_bundle)
-
-                self.helper.connector_logger.info(
-                    "Sending STIX objects to OpenCTI...",
-                    {"bundles_sent": {str(len(bundles_sent))}},
-                )
-
+            # Note: STIX objects are now sent individually for each file in _collect_intelligence
+            # No need to send a bundle here anymore
+            
             current_state = self.helper.get_state()
             current_state_datetime = now.strftime("%Y-%m-%d %H:%M:%S")
             last_run_datetime = datetime.utcfromtimestamp(current_timestamp).strftime(
@@ -151,32 +145,95 @@ class ConnectorTemplate:
     def _collect_intelligence(self) -> list:
         """
         Collect intelligence from the source and convert into STIX object
-        :return: List of STIX objects
+        Send STIX objects for each individual file immediately
+        :return: List of STIX objects (empty list since we send individually)
         """
         stix_objects = []
+        file_count = 0
 
         for entity in self.client.get_entities(
             owner="stamparm", repo="maltrail", path="trails/static"
         ):
             self.helper.connector_logger.info(
-                f"entity: {entity}"
+                f"Processing entity: {entity}"
             )
-            stix_convertor = STIXConvertor(self.helper, entity["references"])
-            observables = []
-            indicators = []
-            relationships = []
-            for value in entity["observables"]:
-                if value:
-                    observable = stix_convertor.create_obs(value)
-                    indicator = stix_convertor.create_indicator(value)
-                    indicators.append(indicator)
-                    if observable:
-                        observables.append(observable)
-                        relationships.append(
-                            stix_convertor.create_relationship(
-                                observable["id"], "indicates", indicator["id"]
-                            )
-                        )
-                stix_objects += observables + indicators + relationships
+            
+            # Process this entity and send immediately
+            file_stix_objects = self._process_entity(entity)
+            
+            if file_stix_objects:
+                # Create and send bundle for this file
+                file_bundle = self.helper.stix2_create_bundle(file_stix_objects)
+                bundles_sent = self.helper.send_stix2_bundle(file_bundle)
+                
+                self.helper.connector_logger.info(
+                    f"Sent STIX objects for file {file_count + 1}",
+                    {"bundles_sent": {str(len(bundles_sent))}, "file_count": file_count + 1}
+                )
+                
+                file_count += 1
+                
+                # Update state after each file is processed
+                self._update_state_after_file(file_count)
 
-        return stix_objects
+        self.helper.connector_logger.info(
+            f"Completed processing {file_count} files",
+            {"total_files_processed": file_count}
+        )
+        
+        return stix_objects  # Return empty list since we sent individually
+
+    def _process_entity(self, entity: dict) -> list:
+        """
+        Process a single entity and convert to STIX objects
+        :param entity: Entity data containing references and observables
+        :return: List of STIX objects for this entity
+        """
+        stix_convertor = STIXConvertor(self.helper, entity["references"])
+        observables = []
+        indicators = []
+        relationships = []
+        
+        for value in entity["observables"]:
+            if value:
+                observable = stix_convertor.create_obs(value)
+                indicator = stix_convertor.create_indicator(value)
+                indicators.append(indicator)
+                if observable:
+                    observables.append(observable)
+                    relationships.append(
+                        stix_convertor.create_relationship(
+                            observable["id"], "indicates", indicator["id"]
+                        )
+                    )
+        
+        return observables + indicators + relationships
+
+    def _update_state_after_file(self, file_count: int) -> None:
+        """
+        Update the connector state after processing each file
+        :param file_count: Number of files processed so far
+        """
+        try:
+            current_state = self.helper.get_state()
+            now = datetime.now()
+            current_state_datetime = now.strftime("%Y-%m-%d %H:%M:%S")
+            
+            if current_state:
+                current_state["last_run"] = current_state_datetime
+                current_state["files_processed"] = file_count
+            else:
+                current_state = {
+                    "last_run": current_state_datetime,
+                    "files_processed": file_count
+                }
+            
+            self.helper.set_state(current_state)
+            
+            self.helper.connector_logger.info(
+                f"Updated state after processing file {file_count}",
+                {"files_processed": file_count, "last_update": current_state_datetime}
+            )
+            
+        except Exception as err:
+            self.helper.connector_logger.error(f"Error updating state: {err}")
