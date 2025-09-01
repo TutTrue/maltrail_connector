@@ -14,7 +14,7 @@ services:
 
     networks:
       - opencti_network
-    restart: unless-stopped
+    restart: no
 
 networks:
   opencti_network:

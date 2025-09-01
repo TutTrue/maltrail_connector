@@ -51,21 +51,18 @@ class ConnectorTemplate:
         Example: `CONNECTOR_DURATION_PERIOD=PT5M` => Will run the process every 5 minutes
         :return: None
         """
-        while True:
-            try:
-                self.process_message()
-            except (KeyboardInterrupt, SystemExit):
-                self.helper.log_info("Connector stop")
-                sys.exit(0)
-            except Exception:  # pylint:disable=broad-exception-caught
-                self.helper.log_error(traceback.format_exc())
-
-            if self.helper.connect_run_and_terminate:
-                self.helper.log_info("Connector stop")
-                self.helper.force_ping()
-                sys.exit(0)
-            # this should sleep it for 2 days before it runs againe
-            time.sleep(172800)
+        try:
+            self.process_message()
+        except (KeyboardInterrupt, SystemExit):
+            self.helper.log_info("Connector stop")
+            sys.exit(0)
+        except Exception:  # pylint:disable=broad-exception-caught
+            self.helper.log_error(traceback.format_exc())
+        if self.helper.connect_run_and_terminate:
+            self.helper.log_info("Connector stop")
+            self.helper.force_ping()
+            sys.exit(0)
+        sys.exit(0)
 
     def process_message(self) -> None:
         """
