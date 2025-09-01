@@ -52,7 +52,8 @@ class ConnectorTemplate:
         :return: None
         """
         try:
-            self.process_message()
+            # self.process_message()
+            self.helper.log_info("Connector started")
         except (KeyboardInterrupt, SystemExit):
             self.helper.log_info("Connector stop")
             sys.exit(0)
